@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connexion — Cid</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090e1a; /* Sombre clinique */
+      --panel: rgba(22, 29, 49, 0.7); /* Verre dépoli sombre */
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --accent: #0ea5e9;
+      --accent-2: #0284c7;
+      --danger: #f43f5e;
+      --success: #10b981;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column-reverse;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    @media (min-width: 768px) {
+      body {
+        flex-direction: row;
+        height: 100vh;
+        overflow: hidden;
+      }
+    }
+
+    .left-side {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 10% 90%, rgba(14, 165, 233, 0.05), transparent 45%), var(--bg);
+      padding: 40px 24px;
+    }
+
+    .right-side {
+      flex: 1.2;
+      background: linear-gradient(135deg, #090e1a 0%, #0d9488 50%, #1e3a8a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      padding: 60px 40px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .right-side::before {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, transparent 70%);
+      top: -200px;
+      right: -100px;
+      pointer-events: none;
+      filter: blur(40px);
+    }
+
+    .right-side::after {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+      bottom: -150px;
+      left: -100px;
+      pointer-events: none;
+      filter: blur(40px);
+    }
+
+    .welcome-content {
+      position: relative;
+      z-index: 2;
+      max-width: 500px;
+      animation: fadeInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .welcome-logo {
+      font-size: 64px;
+      margin-bottom: 24px;
+      color: var(--accent);
+      filter: drop-shadow(0 0 15px rgba(14, 165, 233, 0.4));
+    }
+
+    .welcome-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 42px;
+      font-weight: 800;
+      margin: 0 0 20px;
+      color: #ffffff;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #ffffff, #93c5fd, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    .welcome-text {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--muted);
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .login-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      width: 100%;
+      max-width: 440px;
+      padding: 44px 36px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      animation: fadeInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes fadeInLeft {
+      from { opacity: 0; transform: translateX(-30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes fadeInRight {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .logo-container {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background: rgba(14, 165, 233, 0.12);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid rgba(14, 165, 233, 0.2);
+    }
+
+    h1 {
+      margin: 20px 0 8px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      text-align: center;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+
+    p.subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+      margin: 0 0 24px;
+      line-height: 1.5;
+    }
+
+    form {
+      display: grid;
+      gap: 18px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-wrapper i {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 15px;
+      pointer-events: none;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 16px 14px 46px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(17, 24, 39, 0.4);
+      color: var(--text);
+      font: inherit;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(17, 24, 39, 0.6);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #ffffff;
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 20px rgba(14, 165, 233, 0.25);
+      margin-top: 10px;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(14, 165, 233, 0.45);
+      filter: brightness(1.1);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .notice {
+      padding: 14px 18px;
+      border-radius: 14px;
+      background: rgba(244, 63, 94, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(244, 63, 94, 0.2);
+      font-size: 13px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="left-side">
+    <div class="login-card">
+      <div class="logo-container">
+        <div class="pill" style="gap: 6px; display: inline-flex; align-items: center;"><img src="/logo.jpeg" style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover;" alt=""> Cid</div>
+        <h1 id="form-title">Connexion</h1>
+      </div>
+
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label>Nom d'utilisateur</label>
+          <div class="input-wrapper">
+            <i class="fa-solid fa-user"></i>
+            <input name="nom_utilisateur" placeholder="" required autocomplete="username" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Mot de passe</label>
+          <div class="input-wrapper">
+            <i class="fa-solid fa-lock"></i>
+            <input name="mot_de_passe" type="password" placeholder="" required autocomplete="current-password" />
+          </div>
+          <a href="#" onclick="showForgotPassword(event)" style="font-size: 13px; color: var(--accent); text-decoration: none; align-self: flex-end; margin-top: 4px;">Mot de passe oublié ?</a>
+        </div>
+
+        <div id="login-error" class="notice"></div>
+
+        <button type="submit"><i class="fa-solid fa-right-from-bracket"></i> Se connecter</button>
+      </form>
+
+      <form id="forgot-form" onsubmit="handleForgotPassword(event)" style="display: none;">
+        <div class="form-group">
+          <label>Nom d'utilisateur</label>
+          <div class="input-wrapper">
+            <i class="fa-solid fa-user"></i>
+            <input name="nom_utilisateur" placeholder="Ex: dr_martin" required />
+          </div>
+        </div>
+
+        <div id="forgot-error" class="notice"></div>
+        <div id="forgot-success" style="padding: 14px 18px; border-radius: 14px; background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); font-size: 13px; display: none; align-items: center; gap: 10px; line-height: 1.4;"></div>
+
+        <button type="submit"><i class="fa-solid fa-paper-plane"></i> Recevoir un lien</button>
+        
+        <a href="#" onclick="showLogin(event)" style="text-align: center; color: var(--muted); font-size: 13px; text-decoration: none; margin-top: 12px; display: block;">Retour à la connexion</a>
+      </form>
+    </div>
+  </div>
+
+  <div class="right-side">
+    <div class="welcome-content" style="display: flex; flex-direction: column; align-items: center;">
+      <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px;">
+        <img src="/logo.jpeg" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255, 255, 255, 0.15); box-shadow: 0 12px 30px rgba(0,0,0,0.4);" alt="Cid Logo">
+        <h1 style="font-size: 40px; font-weight: 800; color: white; margin: 0; text-shadow: 0 4px 12px rgba(0,0,0,0.3); font-family: 'Outfit', sans-serif;">Hello Cid!</h1>
+      </div>
+      <h2 class="welcome-title">Bienvenue à vous</h2>
+    </div>
+  </div>
+
+  <script>
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('login-error');
+      errEl.style.display = 'none';
+
+      const payload = Object.fromEntries(new FormData(e.target).entries());
+
+      try {
+        const response = await fetch('/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Erreur d'authentification");
+        }
+
+        window.location.href = '/admin';
+      } catch (err) {
+        errEl.style.display = 'flex';
+        errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ` + err.message;
+      }
+    }
+
+    function showForgotPassword(e) {
+      if (e) e.preventDefault();
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('forgot-form').style.display = 'grid';
+      document.getElementById('form-title').innerText = 'Récupération';
+      document.getElementById('forgot-error').style.display = 'none';
+      document.getElementById('forgot-success').style.display = 'none';
+    }
+
+    function showLogin(e) {
+      if (e) e.preventDefault();
+      document.getElementById('login-form').style.display = 'grid';
+      document.getElementById('forgot-form').style.display = 'none';
+      document.getElementById('form-title').innerText = 'Connexion';
+      document.getElementById('login-error').style.display = 'none';
+    }
+
+    async function handleForgotPassword(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('forgot-error');
+      const succEl = document.getElementById('forgot-success');
+      errEl.style.display = 'none';
+      succEl.style.display = 'none';
+
+      const payload = Object.fromEntries(new FormData(e.target).entries());
+
+      try {
+        const response = await fetch('/admin/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Erreur lors de la demande");
+        }
+
+        succEl.style.display = 'flex';
+        succEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> ` + data.message;
+        e.target.reset();
+      } catch (err) {
+        errEl.style.display = 'flex';
+        errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ` + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

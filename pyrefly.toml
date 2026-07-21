@@ -1,0 +1,6 @@
+site-package-path = ["/home/mev/Documents/ProjetP/PMW/.venv/lib/python3.12/site-packages"]
+search-path = "."
+project-excludes = [
+    "**/__pyrefly_virtual__/**",
+    "/__pyrefly_virtual__/**"
+]

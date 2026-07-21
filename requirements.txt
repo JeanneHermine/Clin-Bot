@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+psycopg2-binary
+python-dotenv
+pydantic-settings
+cryptography
+python-multipart
+aiofiles
+twilio
+httpx
+cloudinary
+reportlab
+

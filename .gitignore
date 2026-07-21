@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.cloudflared/*
+!.cloudflared/config.example.yml
+.vscode/
+venv/
+pgdata/
+/.pytest_cache
