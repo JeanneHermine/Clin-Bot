@@ -50,8 +50,8 @@ def main():
 
     # Pre-clean test data
     cleanup_test_data(db, whatsapp_prefix="whatsapp:+999999")
-    # Clean message logs with these test numbers too
-    db.query(JournalMessage).filter(JournalMessage.numero_destinataire.like("%999999%")).delete(synchronize_session=False)
+    # Clean message logs completely to avoid interference from other tests
+    db.query(JournalMessage).delete(synchronize_session=False)
     db.query(Utilisateur).filter(Utilisateur.nom_utilisateur.like("Dr Smoke Test%")).delete(synchronize_session=False)
     db.query(SessionChat).filter(SessionChat.numero_whatsapp.like("%999999%")).delete(synchronize_session=False)
     db.commit()

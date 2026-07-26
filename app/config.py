@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     otp_debug_return_code: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
+    base_url: str | None = None
 
     # Cloudinary storage settings
     cloudinary_cloud_name: str = ""
@@ -24,5 +25,25 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
-
 settings = Settings()
+
+
+def get_public_url(request, name: str, **kwargs) -> str:
+    """Generates a URL and overrides its scheme/host with base_url if set."""
+    from urllib.parse import urlparse, urlunparse
+    url = request.url_for(name, **kwargs)
+    if settings.base_url:
+        parsed_base = urlparse(settings.base_url)
+        parsed_url = urlparse(str(url))
+        url = urlunparse(
+            (
+                parsed_base.scheme or parsed_url.scheme,
+                parsed_base.netloc or parsed_url.netloc,
+                parsed_url.path,
+                parsed_url.params,
+                parsed_url.query,
+                parsed_url.fragment,
+            )
+        )
+    return str(url)
+

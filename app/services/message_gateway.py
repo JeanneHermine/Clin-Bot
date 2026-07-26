@@ -29,6 +29,10 @@ class StubGateway(MessageGateway):
     log_path = "twilio_simulation.log"
 
     def send_whatsapp(self, to_number: str, body: str, media_urls: Optional[List[str]] = None):
+        if not to_number:
+            raise ValueError("Destination number cannot be empty")
+        if not to_number.startswith("whatsapp:"):
+            to_number = f"whatsapp:{to_number}"
         is_failure = "fail" in to_number or to_number.endswith("555")
         
         record = {
@@ -126,6 +130,10 @@ class TwilioGateway(MessageGateway):
             self.client = None
 
     def send_whatsapp(self, to_number: str, body: str, media_urls: Optional[List[str]] = None):
+        if not to_number:
+            raise ValueError("Destination number cannot be empty")
+        if not to_number.startswith("whatsapp:"):
+            to_number = f"whatsapp:{to_number}"
         if not self.client:
             return StubGateway().send_whatsapp(to_number, body, media_urls)
 

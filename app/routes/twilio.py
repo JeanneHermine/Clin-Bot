@@ -474,9 +474,10 @@ def twilio_whatsapp_webhook(
         except HTTPException as exc:
             return Response(content=_build_twiml(exc.detail), media_type="application/xml; charset=utf-8")
 
+        from app.config import get_public_url
         download_expires_at = datetime.now(timezone.utc) + timedelta(minutes=DOWNLOAD_TOKEN_TTL_MINUTES)
         download_token = _build_download_token(whatsapp_number, int(result_id), download_expires_at)
-        download_url = str(request.url_for("twilio_download_result", token=download_token))
+        download_url = get_public_url(request, "twilio_download_result", token=download_token)
 
         _save_session(session, state="menu", data={})
         db.commit()

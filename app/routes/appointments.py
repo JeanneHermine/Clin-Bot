@@ -162,11 +162,21 @@ def get_appointment(
     return appointment
 
 
+def send_whatsapp_in_background(to_number: str, body: str, media_urls: list[str] | None = None):
+    from app.services.message_gateway import get_message_gateway
+    gateway = get_message_gateway()
+    try:
+        gateway.send_whatsapp(to_number, body, media_urls=media_urls)
+    except Exception:
+        pass
+
+
 @router.patch("/{appointment_id}", response_model=RendezVousOut)
 def update_appointment(
     appointment_id: int,
     payload: RendezVousUpdate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(require_user),
 ):
@@ -201,14 +211,13 @@ def update_appointment(
     if appointment.statut == "confirme" and previous_status != "confirme":
         patient = db.query(Patient).filter(Patient.id == appointment.patient_id).first()
         if patient is not None:
-            from app.services.message_gateway import get_message_gateway
             from app.routes.twilio import _build_appointment_token
+            from app.config import get_public_url
             from datetime import datetime, timedelta
             
-            gateway = get_message_gateway()
             expires_at = datetime.now(timezone.utc) + timedelta(days=7)
             token = _build_appointment_token(patient.numero_whatsapp, appointment.id, expires_at)
-            download_url = str(request.url_for("twilio_download_appointment", token=token))
+            download_url = get_public_url(request, "twilio_download_appointment", token=token)
             
             dt_str = appointment.heure_debut.astimezone(timezone.utc).strftime("%d/%m/%Y à %H:%M")
             msg_body = (
@@ -216,10 +225,12 @@ def update_appointment(
                 f"le {dt_str} a été validé et confirmé par la clinique.\n"
                 f"Vous trouverez votre fiche récapitulative officielle (PDF) ci-jointe."
             )
-            try:
-                gateway.send_whatsapp(patient.numero_whatsapp, msg_body, media_urls=[download_url])
-            except Exception:
-                pass
+            background_tasks.add_task(
+                send_whatsapp_in_background,
+                patient.numero_whatsapp,
+                msg_body,
+                [download_url]
+            )
     
     invalidate_availabilities_cache()
     log_activity(db, current_user.nom_utilisateur, f"Modification du rendez-vous #{appointment.id} (nouveau statut: {appointment.statut})")

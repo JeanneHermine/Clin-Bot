@@ -2049,7 +2049,7 @@
       const pCount = patientsCache.length;
       document.getElementById('stat-patients').textContent = pCount;
 
-      const pendingApps = appointmentsCache.filter(a => a.statut === 'pending_validation').length;
+      const pendingApps = appointmentsCache.filter(a => a.statut === 'en_attente').length;
       document.getElementById('stat-pending-appointments').textContent = pendingApps;
 
       const resultsCount = resultsCache.length;
@@ -2710,9 +2710,9 @@
         if (!doctors[doc]) {
           doctors[doc] = { confirmed: 0, pending: 0, total: 0, specialty: app.specialite || 'Général' };
         }
-        if (app.statut === 'confirmed') {
+        if (app.statut === 'confirme') {
           doctors[doc].confirmed++;
-        } else if (app.statut === 'pending_validation') {
+        } else if (app.statut === 'en_attente') {
           doctors[doc].pending++;
         }
         doctors[doc].total++;
@@ -2896,12 +2896,18 @@
             let actionHtml = '';
 
             if (e.type === 'appointment') {
-              if (e.status === 'confirmed') {
+              if (e.status === 'confirme') {
                 badgeClass = 'badge-success';
                 badgeText = 'Confirmé';
-              } else if (e.status === 'pending_validation') {
+              } else if (e.status === 'en_attente') {
                 badgeClass = 'badge-warning';
                 badgeText = 'En attente';
+              } else if (e.status === 'annule') {
+                badgeClass = 'badge-secondary';
+                badgeText = 'Annulé';
+              } else if (e.status === 'rejete') {
+                badgeClass = 'badge-danger';
+                badgeText = 'Rejeté';
               } else {
                 badgeClass = 'badge-danger';
                 badgeText = e.status;
