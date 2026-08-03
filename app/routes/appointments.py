@@ -6,7 +6,7 @@ from app.db import get_db
 from app.models import RendezVous, DisponibiliteMedecin, Patient, Utilisateur
 from app.schemas import RendezVousCreate, RendezVousOut, RendezVousUpdate
 from app.services.auth_service import require_user, log_activity
-from app.services.reminders import send_upcoming_appointment_reminders
+from app.services.reminders import send_upcoming_appointment_reminders, notify_doctor_if_applicable
 from app.services.cache import invalidate_availabilities_cache
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -33,38 +33,7 @@ def _attach_availability_fields(appointment: RendezVous, payload: RendezVousCrea
         appointment.motif = payload.motif
 
 
-def _notify_doctor_if_applicable(doctor_name: str, appointment_id: int, start_time, patient_id: int):
-    from app.db import SessionLocal
-    db = SessionLocal()
-    try:
-        clean_doc_name = doctor_name.lower().replace("dr.", "").replace("dr", "").replace(" ", "").replace("_", "").strip()
-        print(f"[_notify_doctor_if_applicable] doctor_name={doctor_name}, clean_doc_name={clean_doc_name}", flush=True)
-        if not clean_doc_name:
-            return
-
-        doctors = db.query(Utilisateur).filter(Utilisateur.role == "doctor").all()
-        print(f"[_notify_doctor_if_applicable] found {len(doctors)} doctor users in DB", flush=True)
-        for doc_user in doctors:
-            clean_username = doc_user.nom_utilisateur.lower().replace("dr.", "").replace("dr", "").replace(" ", "").replace("_", "").strip()
-            print(f"[_notify_doctor_if_applicable] checking doc_user={doc_user.nom_utilisateur}, clean_username={clean_username}, phone={doc_user.numero_telephone}", flush=True)
-            if clean_doc_name in clean_username or clean_username in clean_doc_name:
-                print(f"[_notify_doctor_if_applicable] matched doctor {doc_user.nom_utilisateur}", flush=True)
-                if doc_user.numero_telephone:
-                    from app.services.message_gateway import get_message_gateway
-                    gateway = get_message_gateway()
-                    dt_str = start_time.astimezone(timezone.utc).strftime("%d/%m/%Y à %H:%M")
-                    body = (
-                        f"Notification Docteur : Un nouveau rendez-vous a été planifié pour vous "
-                        f"avec le patient #{patient_id} le {dt_str}."
-                    )
-                    try:
-                        res = gateway.send_whatsapp(doc_user.numero_telephone, body)
-                        print(f"[_notify_doctor_if_applicable] send_whatsapp result={res}", flush=True)
-                    except Exception as e:
-                        print(f"[_notify_doctor_if_applicable] send_whatsapp exception: {e}", flush=True)
-                    break
-    finally:
-        db.close()
+# notify_doctor_if_applicable is imported from app.services.reminders
 
 
 @router.post("", response_model=RendezVousOut, status_code=201)
@@ -83,7 +52,7 @@ def create_appointment(
 
     selected_availability = None
     if payload.disponibilite_id is not None:
-        selected_availability = db.query(DisponibiliteMedecin).filter(DisponibiliteMedecin.id == payload.disponibilite_id).first()
+        selected_availability = db.query(DisponibiliteMedecin).filter(DisponibiliteMedecin.id == payload.disponibilite_id).with_for_update().first()
         if selected_availability is None:
             raise HTTPException(status_code=404, detail="Creneau introuvable.")
         if not selected_availability.est_disponible or selected_availability.est_bloque:
@@ -119,7 +88,7 @@ def create_appointment(
     db.refresh(appointment)
     
     background_tasks.add_task(
-        _notify_doctor_if_applicable,
+        notify_doctor_if_applicable,
         appointment.nom_medecin,
         appointment.id,
         appointment.heure_debut,
@@ -211,12 +180,12 @@ def update_appointment(
     if appointment.statut == "confirme" and previous_status != "confirme":
         patient = db.query(Patient).filter(Patient.id == appointment.patient_id).first()
         if patient is not None:
-            from app.routes.twilio import _build_appointment_token
+            from app.services.auth_service import build_appointment_token
             from app.config import get_public_url
             from datetime import datetime, timedelta
             
             expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-            token = _build_appointment_token(patient.numero_whatsapp, appointment.id, expires_at)
+            token = build_appointment_token(patient.numero_whatsapp, appointment.id, expires_at)
             download_url = get_public_url(request, "twilio_download_appointment", token=token)
             
             dt_str = appointment.heure_debut.astimezone(timezone.utc).strftime("%d/%m/%Y à %H:%M")

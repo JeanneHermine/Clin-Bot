@@ -21,8 +21,9 @@ from app.services.upload_security import (
 )
 
 
-from app.routes.appointments import _notify_doctor_if_applicable
+from app.services.reminders import notify_doctor_if_applicable
 from app.services.cache import specialties_cache, slots_cache, invalidate_availabilities_cache
+from app.services.auth_service import decode_appointment_token
 
 router = APIRouter(prefix="/twilio", tags=["twilio"])
 
@@ -30,7 +31,7 @@ DOWNLOAD_TOKEN_TTL_MINUTES = 15
 
 
 def _normalize_whatsapp_number(value: str) -> str:
-    value = value.strip()
+    value = value.strip().replace(" ", "")
     if value.startswith("whatsapp:"):
         return value
     return f"whatsapp:{value}"
@@ -144,43 +145,7 @@ def _parse_results_identity_input(text: str):
     return None, None
 
 
-def _build_appointment_token(whatsapp_number: str, appointment_id: int, expires_at: datetime) -> str:
-    payload = {
-        "whatsapp_number": whatsapp_number,
-        "appointment_id": appointment_id,
-        "expires_at": expires_at.astimezone(timezone.utc).isoformat(),
-    }
-    raw_payload = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    payload_b64 = base64.urlsafe_b64encode(raw_payload).decode("ascii").rstrip("=")
-    signature = hmac.new(
-        settings.secret_key.encode("utf-8"),
-        payload_b64.encode("ascii"),
-        hashlib.sha256,
-    ).hexdigest()
-    return f"{payload_b64}.{signature}"
-
-
-def _decode_appointment_token(token: str) -> dict:
-    try:
-        payload_b64, signature = token.split(".", 1)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Jeton de téléchargement invalide.") from exc
-
-    expected_signature = hmac.new(
-        settings.secret_key.encode("utf-8"),
-        payload_b64.encode("ascii"),
-        hashlib.sha256,
-    ).hexdigest()
-    if not hmac.compare_digest(signature, expected_signature):
-        raise HTTPException(status_code=403, detail="Jeton de téléchargement invalide.")
-
-    padding = "=" * (-len(payload_b64) % 4)
-    try:
-        payload = json.loads(base64.urlsafe_b64decode(payload_b64 + padding).decode("utf-8"))
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Jeton de téléchargement invalide.") from exc
-
-    return payload
+# build_appointment_token and decode_appointment_token are imported from app.services.auth_service
 
 
 def _build_menu_message() -> str:
@@ -301,6 +266,7 @@ def _find_matching_availability(
         .filter(DisponibiliteMedecin.est_disponible.is_(True), DisponibiliteMedecin.est_bloque.is_(False))
         .filter(DisponibiliteMedecin.heure_debut == start_time)
         .order_by(DisponibiliteMedecin.heure_debut.asc())
+        .with_for_update()
         .first()
     )
 
@@ -387,7 +353,7 @@ def _finalize_booking(
     db.refresh(appointment)
     invalidate_availabilities_cache()
     background_tasks.add_task(
-        _notify_doctor_if_applicable,
+        notify_doctor_if_applicable,
         appointment.nom_medecin,
         appointment.id,
         appointment.heure_debut,
@@ -701,16 +667,61 @@ def twilio_whatsapp_webhook(
 
         selected_slot = _resolve_slot_choice(body, slots)
         if selected_slot is not None:
-            booking_data["availability_id"] = selected_slot.id
-            booking_data["date"] = selected_slot.heure_debut.astimezone(timezone.utc).date().isoformat()
-            booking_data["time"] = selected_slot.heure_debut.astimezone(timezone.utc).strftime("%H:%M")
+            # Lock the slot to avoid concurrent booking
+            locked_slot = (
+                db.query(DisponibiliteMedecin)
+                .filter(
+                    DisponibiliteMedecin.id == selected_slot.id,
+                    DisponibiliteMedecin.est_disponible.is_(True),
+                    DisponibiliteMedecin.est_bloque.is_(False)
+                )
+                .with_for_update()
+                .first()
+            )
+            if locked_slot is None:
+                specialty = booking_data.get("specialty")
+                updated_slots = _available_slots_for_specialty(db, specialty)
+                booking_data["slots"] = [
+                    {
+                        "availability_id": s.id,
+                        "doctor_name": s.nom_medecin,
+                        "start_time": s.heure_debut.astimezone(timezone.utc).isoformat(),
+                        "end_time": s.heure_fin.astimezone(timezone.utc).isoformat() if s.heure_fin else None,
+                    }
+                    for s in updated_slots
+                ]
+                _save_session(session, state="booking_slot_choice", data={"booking": booking_data})
+                db.commit()
+                
+                if updated_slots:
+                    return Response(
+                        content=_build_twiml(
+                            "Désolé, ce créneau vient d'être réservé par un autre patient. 😔\n"
+                            "Veuillez choisir un autre créneau parmi les choix suivants :\n" + _format_slot_choices(updated_slots)
+                        ),
+                        media_type="application/xml; charset=utf-8",
+                    )
+                else:
+                    _save_session(session, state="menu", data={})
+                    db.commit()
+                    return Response(
+                        content=_build_twiml(
+                            "Désolé, aucun créneau n'est plus disponible pour cette spécialité. 😔\n"
+                            "Tapez Menu pour revenir au choix principal."
+                        ),
+                        media_type="application/xml; charset=utf-8",
+                    )
+
+            booking_data["availability_id"] = locked_slot.id
+            booking_data["date"] = locked_slot.heure_debut.astimezone(timezone.utc).date().isoformat()
+            booking_data["time"] = locked_slot.heure_debut.astimezone(timezone.utc).strftime("%H:%M")
             appointment = _finalize_booking(
                 db,
                 patient,
                 booking_data,
-                selected_slot.heure_debut,
+                locked_slot.heure_debut,
                 background_tasks,
-                availability=selected_slot,
+                availability=locked_slot,
             )
             
             _save_session(session, state="menu", data={})
@@ -940,7 +951,7 @@ def twilio_download_result(token: str, db: Session = Depends(get_db)):
 
 @router.get("/download-appointment/{token}", name="twilio_download_appointment")
 def twilio_download_appointment(token: str, db: Session = Depends(get_db)):
-    payload = _decode_appointment_token(token)
+    payload = decode_appointment_token(token)
     whatsapp_number = payload.get("whatsapp_number")
     appointment_id = payload.get("appointment_id")
     expires_at_raw = payload.get("expires_at")

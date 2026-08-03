@@ -191,3 +191,40 @@ def start_doctor_reminder_scheduler():
 
     t = threading.Thread(target=run_scheduler, daemon=True)
     t.start()
+
+
+def notify_doctor_if_applicable(doctor_name: str, appointment_id: int, start_time, patient_id: int):
+    from app.db import SessionLocal
+    from app.models import Utilisateur
+    from app.services.message_gateway import get_message_gateway
+    from datetime import timezone
+
+    db = SessionLocal()
+    try:
+        clean_doc_name = doctor_name.lower().replace("dr.", "").replace("dr", "").replace(" ", "").replace("_", "").strip()
+        print(f"[notify_doctor_if_applicable] doctor_name={doctor_name}, clean_doc_name={clean_doc_name}", flush=True)
+        if not clean_doc_name:
+            return
+
+        doctors = db.query(Utilisateur).filter(Utilisateur.role == "doctor").all()
+        print(f"[notify_doctor_if_applicable] found {len(doctors)} doctor users in DB", flush=True)
+        for doc_user in doctors:
+            clean_username = doc_user.nom_utilisateur.lower().replace("dr.", "").replace("dr", "").replace(" ", "").replace("_", "").strip()
+            print(f"[notify_doctor_if_applicable] checking doc_user={doc_user.nom_utilisateur}, clean_username={clean_username}, phone={doc_user.numero_telephone}", flush=True)
+            if clean_doc_name in clean_username or clean_username in clean_doc_name:
+                print(f"[notify_doctor_if_applicable] matched doctor {doc_user.nom_utilisateur}", flush=True)
+                if doc_user.numero_telephone:
+                    gateway = get_message_gateway()
+                    dt_str = start_time.astimezone(timezone.utc).strftime("%d/%m/%Y à %H:%M")
+                    body = (
+                        f"Notification Docteur : Un nouveau rendez-vous a été planifié pour vous "
+                        f"avec le patient #{patient_id} le {dt_str}."
+                    )
+                    try:
+                        res = gateway.send_whatsapp(doc_user.numero_telephone, body)
+                        print(f"[notify_doctor_if_applicable] send_whatsapp result={res}", flush=True)
+                    except Exception as e:
+                        print(f"[notify_doctor_if_applicable] send_whatsapp exception: {e}", flush=True)
+                    break
+    finally:
+        db.close()

@@ -110,3 +110,56 @@ def log_activity(db: Session, username: str, action: str, details: str = None) -
     db.commit()
     db.refresh(log)
     return log
+
+
+def build_appointment_token(whatsapp_number: str, appointment_id: int, expires_at) -> str:
+    import json
+    import base64
+    import hmac
+    import hashlib
+    from datetime import timezone
+    from app.config import settings
+
+    payload = {
+        "whatsapp_number": whatsapp_number,
+        "appointment_id": appointment_id,
+        "expires_at": expires_at.astimezone(timezone.utc).isoformat(),
+    }
+    raw_payload = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload_b64 = base64.urlsafe_b64encode(raw_payload).decode("ascii").rstrip("=")
+    signature = hmac.new(
+        settings.secret_key.encode("utf-8"),
+        payload_b64.encode("ascii"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{payload_b64}.{signature}"
+
+
+def decode_appointment_token(token: str) -> dict:
+    import json
+    import base64
+    import hmac
+    import hashlib
+    from datetime import timezone
+    from app.config import settings
+
+    try:
+        payload_b64, signature = token.split(".", 1)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Jeton de téléchargement invalide.") from exc
+
+    expected_signature = hmac.new(
+        settings.secret_key.encode("utf-8"),
+        payload_b64.encode("ascii"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(signature, expected_signature):
+        raise HTTPException(status_code=403, detail="Jeton de téléchargement invalide.")
+
+    padding = "=" * (-len(payload_b64) % 4)
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64 + padding).decode("utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Jeton de téléchargement invalide.") from exc
+
+    return payload

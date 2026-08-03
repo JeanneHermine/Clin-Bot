@@ -10,6 +10,14 @@ class PatientBase(BaseModel):
     date_naissance: date | None = None
     numero_telephone_secondaire: str | None = None
 
+    @field_validator("numero_whatsapp")
+    @classmethod
+    def clean_and_normalize_whatsapp(cls, v: str) -> str:
+        v = v.strip().replace(" ", "")
+        if not v.startswith("whatsapp:"):
+            return f"whatsapp:{v}"
+        return v
+
 
 class PatientCreate(PatientBase):
     pass
@@ -21,6 +29,15 @@ class PatientUpdate(BaseModel):
     nom: str | None = None
     date_naissance: date | None = None
     numero_telephone_secondaire: str | None = None
+
+    @field_validator("numero_whatsapp")
+    @classmethod
+    def clean_and_normalize_whatsapp(cls, v: str | None) -> str | None:
+        if v is not None:
+            v = v.strip().replace(" ", "")
+            if not v.startswith("whatsapp:"):
+                return f"whatsapp:{v}"
+        return v
 
 
 class PatientOut(PatientBase):
@@ -62,6 +79,14 @@ class OtpRequestIn(BaseModel):
     numero_whatsapp: str
     objectif: str = "result_access"
 
+    @field_validator("numero_whatsapp")
+    @classmethod
+    def clean_and_normalize_whatsapp(cls, v: str) -> str:
+        v = v.strip().replace(" ", "")
+        if not v.startswith("whatsapp:"):
+            return f"whatsapp:{v}"
+        return v
+
 
 class OtpRequestOut(BaseModel):
     challenge_id: int
@@ -77,6 +102,14 @@ class OtpVerifyIn(BaseModel):
     objectif: str = "result_access"
     code: str
 
+    @field_validator("numero_whatsapp")
+    @classmethod
+    def clean_and_normalize_whatsapp(cls, v: str) -> str:
+        v = v.strip().replace(" ", "")
+        if not v.startswith("whatsapp:"):
+            return f"whatsapp:{v}"
+        return v
+
 
 class OtpVerifyOut(BaseModel):
     verified: bool
@@ -88,6 +121,14 @@ class SecureResultRetrieveIn(BaseModel):
     numero_whatsapp: str
     otp_code: str
     objectif: str = "result_access"
+
+    @field_validator("numero_whatsapp")
+    @classmethod
+    def clean_and_normalize_whatsapp(cls, v: str) -> str:
+        v = v.strip().replace(" ", "")
+        if not v.startswith("whatsapp:"):
+            return f"whatsapp:{v}"
+        return v
 
 
 class DisponibiliteMedecinBase(BaseModel):
