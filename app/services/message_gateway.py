@@ -119,6 +119,27 @@ class StubGateway(MessageGateway):
             return {"sid": sid}
 
 
+def normalize_benin_phone(phone: str) -> str:
+    cleaned = phone.replace("whatsapp:", "").replace(" ", "").replace("-", "").replace(".", "").strip()
+    if cleaned.startswith("+229"):
+        digits = cleaned[4:]
+        if len(digits) == 8:
+            return f"+22901{digits}"
+        return f"+229{digits}"
+    elif cleaned.startswith("229"):
+        digits = cleaned[3:]
+        if len(digits) == 8:
+            return f"+22901{digits}"
+        return f"+229{digits}"
+    elif cleaned.startswith("01") and len(cleaned) == 10:
+        return f"+229{cleaned}"
+    elif len(cleaned) == 8:
+        return f"+22901{cleaned}"
+    elif cleaned.startswith("+"):
+        return cleaned
+    return f"+{cleaned}"
+
+
 class TwilioGateway(MessageGateway):
     def __init__(self):
         try:
@@ -211,6 +232,61 @@ class TwilioGateway(MessageGateway):
         return {"sid": sid}
 
     def send_sms(self, to_number: str, body: str):
+        # 1. If Africa's Talking is configured, use it for real SMS delivery in Benin
+        if getattr(settings, "africastalking_username", None) and getattr(settings, "africastalking_api_key", None):
+            import africastalking
+            africastalking.initialize(settings.africastalking_username, settings.africastalking_api_key)
+            sms_service = africastalking.SMS
+            clean_number = normalize_benin_phone(to_number)
+            try:
+                kwargs = {}
+                if getattr(settings, "africastalking_sender_id", None):
+                    kwargs["from_"] = settings.africastalking_sender_id
+                response = sms_service.send(body, [clean_number], **kwargs)
+                logger.info(f"Africa's Talking SMS response: {response}")
+                recipients = response.get("SMSMessageData", {}).get("Recipients", [])
+                if recipients and recipients[0].get("status") in ["Success", "sent"]:
+                    sid = recipients[0].get("messageId", f"at-{int(datetime.utcnow().timestamp())}")
+                    try:
+                        db = SessionLocal()
+                        db_record = JournalMessage(
+                            numero_destinataire=clean_number,
+                            corps=body,
+                            urls_media=json.dumps([]),
+                            via="africas-talking-sms",
+                            sid_externe=sid,
+                            statut="envoye",
+                            tentatives=1,
+                        )
+                        db.add(db_record)
+                        db.commit()
+                        db.close()
+                    except Exception:
+                        logger.exception("Failed to persist AT sms log to DB")
+                    return {"sid": sid, "status": "sent"}
+                else:
+                    error_msg = recipients[0].get("status", "Unknown error") if recipients else "No recipient in response"
+                    raise Exception(f"Africa's Talking error: {error_msg}")
+            except Exception as e:
+                logger.exception(f"Africa's Talking SMS failed: {e}")
+                try:
+                    db = SessionLocal()
+                    db_record = JournalMessage(
+                        numero_destinataire=clean_number,
+                        corps=body,
+                        urls_media=json.dumps([]),
+                        via="africas-talking-sms",
+                        sid_externe=f"failed-at-{int(datetime.utcnow().timestamp())}",
+                        statut="echoue",
+                        tentatives=1,
+                    )
+                    db.add(db_record)
+                    db.commit()
+                    db.close()
+                except Exception:
+                    pass
+                raise e
+
         if not self.client:
             return StubGateway().send_sms(to_number, body)
 

@@ -22,26 +22,27 @@ def seed():
 
         # 1. Create Users with different roles if they don't exist
         users = [
-            ("dr_dupont", "Dupont", "doctor"),
-            ("lab_martin", "Martin", "laborantin"),
-            ("staff_lucas", "Lucas", "staff")
+            ("Roméo", "roméo123", "admin"),
+            ("Sandra", "sandra123", "staff"),
+            ("Nelly", "nelly123", "laborantin"),
+            ("Dodds", "dodds123", "doctor")
         ]
-        for username, name, role in users:
+        for username, password, role in users:
             if not db.query(Utilisateur).filter(Utilisateur.nom_utilisateur == username).first():
                 db.add(Utilisateur(
                     nom_utilisateur=username,
-                    mot_de_passe_hashe=hash_password(username),
+                    mot_de_passe_hashe=hash_password(password),
                     role=role,
                     numero_telephone=f"whatsapp:+336123456{len(username)}"
                 ))
 
         # 2. Create Patients
         patients = [
-            Patient(numero_whatsapp="whatsapp:+33612345678", prenom="Jean", nom="Dupont", date_naissance=datetime.strptime("1985-05-12", "%Y-%m-%d").date()),
-            Patient(numero_whatsapp="whatsapp:+33687654321", prenom="Marie", nom="Curie", date_naissance=datetime.strptime("1990-11-07", "%Y-%m-%d").date()),
-            Patient(numero_whatsapp="whatsapp:+33789456123", prenom="Pierre", nom="Martin", date_naissance=datetime.strptime("1978-02-28", "%Y-%m-%d").date()),
-            Patient(numero_whatsapp="whatsapp:+33611112222", prenom="Alice", nom="Bernard", date_naissance=datetime.strptime("1995-09-15", "%Y-%m-%d").date()),
-            Patient(numero_whatsapp="whatsapp:+33633334444", prenom="Thomas", nom="Dubois", date_naissance=datetime.strptime("2000-07-20", "%Y-%m-%d").date())
+            Patient(numero_whatsapp="whatsapp:+22997123456", prenom="Kofi", nom="AGBOSSA", date_naissance=datetime.strptime("1985-05-12", "%Y-%m-%d").date()),
+            Patient(numero_whatsapp="whatsapp:+22995654321", prenom="Abla", nom="SOGLO", date_naissance=datetime.strptime("1990-11-07", "%Y-%m-%d").date()),
+            Patient(numero_whatsapp="whatsapp:+22961894561", prenom="Sena", nom="KODJO", date_naissance=datetime.strptime("1978-02-28", "%Y-%m-%d").date()),
+            Patient(numero_whatsapp="whatsapp:+22990112222", prenom="Femi", nom="ADENYI", date_naissance=datetime.strptime("1995-09-15", "%Y-%m-%d").date()),
+            Patient(numero_whatsapp="whatsapp:+22997334444", prenom="Yasmine", nom="BIO", date_naissance=datetime.strptime("2000-07-20", "%Y-%m-%d").date())
         ]
         for p in patients:
             db.add(p)
@@ -53,18 +54,26 @@ def seed():
 
         # 3. Create Doctor Availabilities
         now = datetime.now(timezone.utc).replace(microsecond=0)
+        base_date = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         doctors = [
-            ("Dr. Arthur Jean", "Cardiologie"),
-            ("Dr. Alice Mercier", "Pédiatrie"),
-            ("Dr. Marc Simon", "Dermatologie"),
-            ("Dr. Sophie Roux", "Ophtalmologie")
+            ("Dr. Basile ADJOU", "Cardiologie"),
+            ("Dr. Chantal GOLOU", "Pédiatrie"),
+            ("Dr. Mathieu KEREKOU", "Dermatologie"),
+            ("Dr. Sabine HOUNDEGNON", "Ophtalmologie")
         ]
 
         availabilities = []
-        for i, (doc_name, specialty) in enumerate(doctors):
-            # Create 3 slots per doctor
-            for day_offset in range(1, 4):
-                start = now + timedelta(days=day_offset, hours=9 + (i * 2))
+        # Standard daytime slots: 09:00, 10:30, 14:00, 15:30
+        slots_config = [
+            (0, 9, 0),    # Day +0, 09:00
+            (0, 10, 30),  # Day +0, 10:30
+            (1, 14, 0),   # Day +1, 14:00
+            (1, 15, 30),  # Day +1, 15:30
+        ]
+
+        for doc_name, specialty in doctors:
+            for day_offset, hour, minute in slots_config:
+                start = base_date + timedelta(days=day_offset, hours=hour, minutes=minute)
                 end = start + timedelta(minutes=30)
                 avail = DisponibiliteMedecin(
                     nom_medecin=doc_name,
@@ -98,7 +107,7 @@ def seed():
         db.add(appt1)
 
         # Booking Patient 2 with Doctor 2
-        avail_to_book2 = availabilities[3]
+        avail_to_book2 = availabilities[4]
         avail_to_book2.est_disponible = False
         appt2 = RendezVous(
             patient_id=patients[1].id,
@@ -142,12 +151,12 @@ def seed():
 
         # 6. Create Audit Logs
         logs = [
-            JournalAudit(nom_utilisateur="admin", action="Connexion réussie", details="IP: 127.0.0.1"),
-            JournalAudit(nom_utilisateur="admin", action="Création du patient #1", details="Nom: DUPONT Jean"),
-            JournalAudit(nom_utilisateur="admin", action="Création du patient #2", details="Nom: CURIE Marie"),
-            JournalAudit(nom_utilisateur="admin", action="Génération PDF Bilan Sanguin", details="Patient ID: 1"),
-            JournalAudit(nom_utilisateur="lab_martin", action="Téléchargement du résultat d'analyse #1", details="Bilan Sanguin"),
-            JournalAudit(nom_utilisateur="admin", action="Création de créneaux médecin", details="Dr. Arthur Jean - Cardiologie")
+            JournalAudit(nom_utilisateur="Roméo", action="Connexion réussie", details="IP: 127.0.0.1"),
+            JournalAudit(nom_utilisateur="Roméo", action="Création du patient #1", details="Nom: AGBOSSA Kofi"),
+            JournalAudit(nom_utilisateur="Roméo", action="Création du patient #2", details="Nom: SOGLO Abla"),
+            JournalAudit(nom_utilisateur="Roméo", action="Génération PDF Bilan Sanguin", details="Patient ID: 1"),
+            JournalAudit(nom_utilisateur="Nelly", action="Téléchargement du résultat d'analyse #1", details="Bilan Sanguin"),
+            JournalAudit(nom_utilisateur="Roméo", action="Création de créneaux médecin", details="Dr. Basile ADJOU - Cardiologie")
         ]
         for log in logs:
             db.add(log)

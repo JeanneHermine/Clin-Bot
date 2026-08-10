@@ -71,14 +71,14 @@ def create_default_admin(db: Session) -> None:
     count = db.query(Utilisateur).count()
     if count == 0:
         admin_user = Utilisateur(
-            nom_utilisateur="admin",
-            mot_de_passe_hashe=hash_password("admin"),
+            nom_utilisateur="Roméo",
+            mot_de_passe_hashe=hash_password("roméo123"),
             role="admin"
         )
         db.add(admin_user)
         db.commit()
         db.refresh(admin_user)
-        print("[AUTH] Default admin user created ('admin' / 'admin')", flush=True)
+        print("[AUTH] Default admin user created ('Roméo' / 'roméo123')", flush=True)
 
 
 from fastapi import Depends, HTTPException, Request

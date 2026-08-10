@@ -1,5 +1,5 @@
 import io
-from datetime import date, datetime
+from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -8,14 +8,19 @@ from reportlab.lib import colors
 
 def generate_medical_pdf(
     patient_name: str,
-    patient_dob: str,
-    patient_whatsapp: str,
-    patient_id: int,
-    analysis_type: str,
-    analysis_date: str,
-    template_type: str,
-    results_data: dict,
+    patient_dob: str = "",
+    patient_whatsapp: str = "",
+    patient_id: int = 0,
+    analysis_type: str = "Bilan Biologique",
+    analysis_date: str = "",
+    template_type: str = "custom",
+    results_data: dict | None = None,
 ) -> bytes:
+    """
+    Génère un PDF officiel de compte-rendu d'analyse médicale.
+    """
+    if results_data is None:
+        results_data = {}
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -28,33 +33,41 @@ def generate_medical_pdf(
     )
     story = []
 
+    # Styles
     styles = getSampleStyleSheet()
-    
 
     title_style = ParagraphStyle(
         'ClinicTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=20,
-        textColor=colors.HexColor('#1e3a8a'),
+        fontSize=18,
+        textColor=colors.HexColor('#0f3a60'),
         alignment=0,
-        spaceAfter=4
+        spaceAfter=2
+    )
+    specialties_style = ParagraphStyle(
+        'ClinicSpecialties',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8.5,
+        textColor=colors.HexColor('#0284c7'),
+        spaceAfter=3
     )
     subtitle_style = ParagraphStyle(
         'ClinicSub',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=10,
-        textColor=colors.HexColor('#475569'),
-        spaceAfter=12
+        fontSize=9,
+        textColor=colors.HexColor('#64748b'),
+        spaceAfter=10
     )
     section_title = ParagraphStyle(
         'SecTitle',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=12,
-        textColor=colors.HexColor('#0d9488'),
-        spaceBefore=12,
+        fontSize=11,
+        textColor=colors.HexColor('#0f3a60'),
+        spaceBefore=14,
         spaceAfter=8
     )
     body_bold = ParagraphStyle(
@@ -79,58 +92,68 @@ def generate_medical_pdf(
         textColor=colors.white
     )
 
-
-    story.append(Paragraph("Cid - CLINIQUE MÉDICALE & LABORATOIRE", title_style))
+    # 1. En-tête de la Clinique
+    story.append(Paragraph("CLINIQUE MÉDICALE & LABORATOIRE", title_style))
+    story.append(Paragraph("Cardiologie · Médecine générale · Analyses biomédicales", specialties_style))
     story.append(Paragraph("Plateforme Numérique de Gestion des Résultats et Analyses Médicales", subtitle_style))
-    
-    divider = Table([['']], colWidths=[530], rowHeights=[2])
+
+    # Ligne de séparation clinique élégante
+    divider = Table([['']], colWidths=[532], rowHeights=[2.5])
     divider.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#0d9488')),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#0284c7')),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     story.append(divider)
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 14))
 
+    # 2. Deux blocs : Dossier Patient & Information sur l'Analyse
+    gen_date = datetime.now().strftime('%d/%m/%Y à %H:%M')
     info_data = [
         [
             Paragraph("<b>DOSSIER PATIENT</b>", body_bold),
-            Paragraph("<b>INFORMATION ANALYSE</b>", body_bold)
+            Paragraph("<b>INFORMATIONS SUR L'ANALYSE</b>", body_bold)
         ],
         [
-            Paragraph(f"Patient ID : #{patient_id}", body_normal),
-            Paragraph(f"Type d'Analyse : {analysis_type}", body_normal)
+            Paragraph(f"<b>Nom & Prénom :</b> {patient_name.upper()}", body_normal),
+            Paragraph(f"<b>Type d'Analyse :</b> {analysis_type}", body_normal)
         ],
         [
-            Paragraph(f"Nom : {patient_name.upper()}", body_normal),
-            Paragraph(f"Date d'Analyse : {analysis_date}", body_normal)
+            Paragraph(f"<b>Contact WhatsApp :</b> {patient_whatsapp}", body_normal),
+            Paragraph(f"<b>Date d'Analyse :</b> {analysis_date or datetime.now().strftime('%d/%m/%Y')}", body_normal)
         ],
         [
-            Paragraph(f"Né(e) le : {patient_dob}", body_normal),
-            Paragraph(f"Date de Génération : {datetime.now().strftime('%d/%m/%Y %H:%M')}", body_normal)
+            Paragraph("<b>Prise en charge :</b> Ambulatoire / Externe", body_normal),
+            Paragraph(f"<b>Édité le :</b> {gen_date}", body_normal)
         ],
         [
-            Paragraph(f"WhatsApp : {patient_whatsapp}", body_normal),
-            Paragraph("Statut : Validé électroniquement", body_bold)
+            Paragraph("", body_normal),
+            Paragraph("<b>Statut :</b> <font color='#047857'><b>Validé électroniquement</b></font>", body_normal)
         ]
     ]
-    info_table = Table(info_data, colWidths=[265, 265])
+
+    info_table = Table(info_data, colWidths=[266, 266])
     info_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#f1f5f9')),
         ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#f1f5f9')),
-        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor('#cbd5e1')),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#f1f5f9')),
+        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor('#0284c7')),
     ]))
     story.append(info_table)
-    story.append(Spacer(1, 20))
+    story.append(Spacer(1, 10))
 
-    story.append(Paragraph("RÉSULTATS DE LABORATOIRE", section_title))
-    
+    # 3. Tableau des Résultats
+    story.append(Paragraph("RÉSULTATS BIOMÉDICAUX", section_title))
+
     table_headers = [
-        Paragraph("Paramètre", cell_header),
-        Paragraph("Résultat Saisi", cell_header),
+        Paragraph("Paramètre / Examen", cell_header),
+        Paragraph("Résultat", cell_header),
         Paragraph("Valeurs de Référence", cell_header),
         Paragraph("Unité", cell_header)
     ]
@@ -154,7 +177,7 @@ def generate_medical_pdf(
             ])
     elif template_type == "urine":
         urine_params = [
-            ("Aspect de l'urine", "aspect", "Clair / Jaune pâle", "-"),
+            ("Aspect de l'urine", "aspect", "Clair / Jaune ambré", "-"),
             ("pH urinaire", "ph", "4.5 - 8.0", "-"),
             ("Protéinurie (Albument)", "proteines", "Négatif", "-"),
             ("Glucosurie", "glucose", "Négatif", "-"),
@@ -171,8 +194,8 @@ def generate_medical_pdf(
     elif template_type == "lipid":
         lipid_params = [
             ("Cholestérol Total", "cholesterol_total", "< 2.00", "g/L"),
-            ("Cholestérol HDL (Bon)", "cholesterol_hdl", "> 0.40", "g/L"),
-            ("Cholestérol LDL (Mauvais)", "cholesterol_ldl", "< 1.30", "g/L"),
+            ("Cholestérol HDL (Protecteur)", "cholesterol_hdl", "> 0.40", "g/L"),
+            ("Cholestérol LDL (Athérogène)", "cholesterol_ldl", "< 1.30", "g/L"),
             ("Triglycérides", "triglycerides_lipid", "< 1.50", "g/L"),
         ]
         for label, key, ref, unit in lipid_params:
@@ -184,66 +207,85 @@ def generate_medical_pdf(
                 Paragraph(unit, body_normal),
             ])
     else:  # Custom / Libre
-        # Display the custom key-values, or a single comment block
         notes_val = results_data.get("notes", "").replace("\n", "<br/>")
-        rows = None  # We won't display a parameters table, but a rich note block instead
+        rows = None
 
     if rows:
-        results_table = Table(rows, colWidths=[180, 110, 160, 80])
+        results_table = Table(rows, colWidths=[180, 112, 160, 80])
         results_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f3a60')),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')])
         ]))
         story.append(results_table)
     else:
         # Notes block for custom results
         notes_data = [
-            [Paragraph("<b>Rapport d'Analyse / Conclusions :</b>", body_bold)],
-            [Paragraph(notes_val if notes_val else "Aucune observation particulière renseignée.", body_normal)]
+            [Paragraph("<b>Détail des Examens & Observations :</b>", body_bold)],
+            [Paragraph(notes_val if notes_val else "Examens biologiques conformes aux spécifications requises.", body_normal)]
         ]
-        notes_table = Table(notes_data, colWidths=[530])
+        notes_table = Table(notes_data, colWidths=[532])
         notes_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
-            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-            ('TOPPADDING', (0, 0), (-1, -1), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
         ]))
         story.append(notes_table)
 
-    story.append(Spacer(1, 30))
+    story.append(Spacer(1, 14))
 
-    # 4. Signature block
-    sig_data = [
-        ["", "<b>Laborantin Responsable</b>"],
-        ["", "Signature & Cachet Électronique"],
-        ["", ""],
-        ["", "Document chiffré au repos (Fernet AES-256)"]
+    # 4. Section Conclusion Biologique
+    story.append(Paragraph("CONCLUSION BIOLOGIQUE", section_title))
+    conclusion_text = (
+        "Examens et analyses réalisés sous la responsabilité du biologiste médical de la clinique. "
+        "Les résultats ci-dessus sont validés conformément aux protocoles d'analyses cliniques et de contrôle qualité en vigueur."
+    )
+    if template_type not in ["blood", "urine", "lipid"] and results_data.get("notes"):
+        conclusion_text = "Rapport biologique certifié conforme aux constats cliniques et aux référentiels du laboratoire."
+
+    conclusion_data = [
+        [Paragraph(f"<i>{conclusion_text}</i>", body_normal)]
     ]
-    sig_table = Table(sig_data, colWidths=[330, 200])
+    conclusion_table = Table(conclusion_data, colWidths=[532])
+    conclusion_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0fdf4')),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#86efac')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+    ]))
+    story.append(conclusion_table)
+
+    story.append(Spacer(1, 20))
+
+    # 5. Bloc Signature (Biologiste responsable)
+    sig_data = [
+        ["", Paragraph("<b>Le Biologiste Responsable</b>", body_bold)],
+        ["", Paragraph("Validation & Certification Électronique", body_normal)],
+        ["", Paragraph("<b>Dr. M. KEREKOU</b> / Biologie Médicale", body_normal)],
+        ["", Paragraph("<font color='#0284c7'>[Cachet & Signature Électronique Certifiés]</font>", body_normal)]
+    ]
+    sig_table = Table(sig_data, colWidths=[312, 220])
     sig_table.setStyle(TableStyle([
         ('ALIGN', (1, 0), (1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(sig_table)
-    
-    # Page Footer note
-    def add_footer(canvas, doc):
-        canvas.saveState()
-        canvas.setFont('Helvetica-Oblique', 8)
-        canvas.setFillColor(colors.HexColor('#64748b'))
-        canvas.drawString(40, 20, "Attention : Ce document est strictement confidentiel. Transmis de manière sécurisée.")
-        canvas.drawRightString(doc.pagesize[0]-40, 20, f"Page {doc.page}")
-        canvas.restoreState()
 
-    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    doc.build(story)
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
@@ -251,16 +293,16 @@ def generate_medical_pdf(
 
 def generate_appointment_pdf(
     patient_name: str,
-    patient_id: int,
-    patient_whatsapp: str,
-    appointment_id: int,
-    doctor_name: str,
-    specialty: str,
-    appointment_date: str,
-    appointment_time: str,
+    patient_id: int = 0,
+    patient_whatsapp: str = "",
+    appointment_id: int = 0,
+    doctor_name: str = "",
+    specialty: str = "",
+    appointment_date: str = "",
+    appointment_time: str = "",
 ) -> bytes:
     """
-    Génère un PDF officiel de confirmation de demande de rendez-vous.
+    Génère un PDF officiel de confirmation de rendez-vous médical.
     """
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -279,96 +321,119 @@ def generate_appointment_pdf(
         'ClinicTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=20,
-        textColor=colors.HexColor('#1e3a8a'),
+        fontSize=18,
+        textColor=colors.HexColor('#0f3a60'),
         alignment=0,
-        spaceAfter=4
+        spaceAfter=2
+    )
+    specialties_style = ParagraphStyle(
+        'ClinicSpecialties',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8.5,
+        textColor=colors.HexColor('#0284c7'),
+        spaceAfter=3
     )
     subtitle_style = ParagraphStyle(
         'ClinicSub',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=10,
-        textColor=colors.HexColor('#475569'),
-        spaceAfter=12
+        fontSize=9,
+        textColor=colors.HexColor('#64748b'),
+        spaceAfter=10
     )
     section_title = ParagraphStyle(
         'SecTitle',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=14,
-        textColor=colors.HexColor('#0d9488'),
-        spaceBefore=15,
+        fontSize=12,
+        textColor=colors.HexColor('#0f3a60'),
+        spaceBefore=14,
         spaceAfter=10
     )
     body_bold = ParagraphStyle(
         'BodyBold',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=10,
+        fontSize=9.5,
         textColor=colors.HexColor('#0f172a')
     )
     body_normal = ParagraphStyle(
         'BodyNorm',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=10,
+        fontSize=9.5,
         textColor=colors.HexColor('#334155')
     )
 
-    story.append(Paragraph("Cid - CLINIQUE MÉDICALE & LABORATOIRE", title_style))
-    story.append(Paragraph("Confirmation Officielle de Demande de Rendez-vous", subtitle_style))
-    
-    divider = Table([['']], colWidths=[530], rowHeights=[2])
+    # 1. En-tête
+    story.append(Paragraph("CLINIQUE MÉDICALE & LABORATOIRE", title_style))
+    story.append(Paragraph("Cardiologie · Médecine générale · Analyses biomédicales", specialties_style))
+    story.append(Paragraph("Confirmation Officielle de Rendez-vous Médical", subtitle_style))
+
+    divider = Table([['']], colWidths=[532], rowHeights=[2.5])
     divider.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#0d9488')),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#0284c7')),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     story.append(divider)
     story.append(Spacer(1, 15))
 
+    # 2. Tableau Récapitulatif
     story.append(Paragraph("RÉCAPITULATIF DU RENDEZ-VOUS", section_title))
-    
+
     info_data = [
-        [Paragraph("<b>Référence RDV :</b>", body_bold), Paragraph(f"#{appointment_id}", body_normal)],
-        [Paragraph("<b>Patient ID :</b>", body_bold), Paragraph(f"#{patient_id}", body_normal)],
+        [Paragraph("<b>Numéro de Référence :</b>", body_bold), Paragraph(f"<b>#{appointment_id}</b>", body_bold)],
         [Paragraph("<b>Nom du Patient :</b>", body_bold), Paragraph(patient_name.upper(), body_normal)],
-        [Paragraph("<b>Numéro WhatsApp :</b>", body_bold), Paragraph(patient_whatsapp, body_normal)],
-        [Paragraph("<b>Médecin :</b>", body_bold), Paragraph(doctor_name, body_normal)],
+        [Paragraph("<b>Contact WhatsApp :</b>", body_bold), Paragraph(patient_whatsapp, body_normal)],
+        [Paragraph("<b>Médecin traitant :</b>", body_bold), Paragraph(doctor_name, body_normal)],
         [Paragraph("<b>Spécialité :</b>", body_bold), Paragraph(specialty, body_normal)],
-        [Paragraph("<b>Date :</b>", body_bold), Paragraph(appointment_date, body_normal)],
-        [Paragraph("<b>Heure :</b>", body_bold), Paragraph(appointment_time, body_normal)],
-        [Paragraph("<b>Statut de la demande :</b>", body_bold), Paragraph("En attente de validation par la clinique", body_bold)],
+        [Paragraph("<b>Date de consultation :</b>", body_bold), Paragraph(appointment_date, body_normal)],
+        [Paragraph("<b>Heure du rendez-vous :</b>", body_bold), Paragraph(appointment_time, body_normal)],
+        [Paragraph("<b>Statut :</b>", body_bold), Paragraph("<font color='#047857'><b>Validé</b></font>", body_bold)],
     ]
-    
-    info_table = Table(info_data, colWidths=[150, 380])
+
+    info_table = Table(info_data, colWidths=[172, 360])
     info_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
         ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#f8fafc')])
     ]))
     story.append(info_table)
-    story.append(Spacer(1, 20))
+    story.append(Spacer(1, 18))
 
-    story.append(Paragraph("<b>Note aux patients :</b>", body_bold))
-    story.append(Paragraph(
-        "Ce document atteste de votre demande de rendez-vous via notre assistant automatique. "
-        "Le secrétariat de la clinique validera cette demande sous peu. "
-        "En cas de modification ou d'annulation, veuillez vous munir du numéro de référence du rendez-vous.",
-        body_normal
-    ))
-    
-    def add_footer(canvas, doc):
-        canvas.saveState()
-        canvas.setFont('Helvetica-Oblique', 8)
-        canvas.setFillColor(colors.HexColor('#64748b'))
-        canvas.drawString(40, 20, "Cid - Service de planification automatisé.")
-        canvas.drawRightString(doc.pagesize[0]-40, 20, f"Généré le {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-        canvas.restoreState()
+    # 3. Note aux patients
+    note_data = [
+        [
+            Paragraph("<b>Note aux patients :</b>", body_bold)
+        ],
+        [
+            Paragraph(
+                "Ce rendez-vous a été validé par le secrétariat de la clinique. "
+                "Veuillez conserver le numéro de référence pour toute modification ou annulation.",
+                body_normal
+            )
+        ]
+    ]
+    note_table = Table(note_data, colWidths=[532])
+    note_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#eff6ff')),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#bfdbfe')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+    ]))
+    story.append(note_table)
 
-    doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    # Pas de pied de page (supprimé entièrement)
+    doc.build(story)
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes

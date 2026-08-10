@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
 
+    # Africa's Talking SMS settings
+    africastalking_username: str = ""
+    africastalking_api_key: str = ""
+    africastalking_sender_id: str | None = None
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

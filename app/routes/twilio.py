@@ -572,6 +572,7 @@ def twilio_whatsapp_webhook(
             data={"purpose": "result_access", "result_id": latest_result.id, "message_sid": message_sid},
         )
         db.commit()
+
         return Response(content=_build_twiml(_build_results_message()), media_type="application/xml; charset=utf-8")
 
     if session.etat == "booking_identity":
@@ -893,7 +894,7 @@ def twilio_whatsapp_webhook(
         if normalized_body == "4":
             return Response(
                 content=_build_twiml(
-                    "Contact clinique : Tel +33 1 23 45 67 89\nEmail : contact@clinique.example\nTapez Menu pour revenir au menu principal."
+                    "Contact clinique : Tel +229 0150505050\nEmail : cliniquebel@gmail.com\nTapez Menu pour revenir au menu principal."
                 ),
                 media_type="application/xml; charset=utf-8",
             )
